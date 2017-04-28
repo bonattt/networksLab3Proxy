@@ -37,28 +37,20 @@ def welcome_socket(port):
 
 
 def run_proxy(sock):
-    sock.listen(1)
+    sock.listen(5)
     threads = []
     while True:
         connection, client_address = sock.accept()
         print("connection received from", client_address)
-        try:
-            # if DEBUG: print('\n' + ('='*20))
-            # t = threading.Thread(target=handle_connection, args=(connection, client_address))
-            # threads.append(t)
-            # t.start()
-            handle_connection(connection, client_address)
 
-            if DEBUG: print('='*20, '\n')
-        except Exception as e:
-            if DEBUG: print(e)
-            line_no = sys.exc_info()[2].tb_lineno # exc_tb.tb_lineno
-            traceback.print_tb(sys.exc_info()[2])
-            print("a", type(e), "exception occurred on line", line_no, "handling the connection from", client_address)
-            
-        finally:
-            if DEBUG: print("closing connection")
-            connection.close()
+        if DEBUG: print('\n' + ('='*20))
+
+        t = threading.Thread(target=handle_connection, args=(connection, client_address))
+        threads.append(t)
+        t.start()
+        # handle_connection(connection, client_address)
+
+        if DEBUG: print('='*20, '\n')
 
     if DEBUG: print("cleaning up threads")
     for thr in threads:
@@ -68,31 +60,42 @@ def run_proxy(sock):
 
 
 def handle_connection(client_sock, client_address):
-    data = receive_from(client_sock)
-    url = getRequestUrl(data)
-    host, port, uri, protocol = parse_url(url)
+    try:
+        data = receive_from(client_sock)
+        url = getRequestUrl(data)
+        host, port, uri, protocol = parse_url(url)
 
-    # if b'mit' not in host:
-    #     print(str(host)[2:-1] + ':' + str(port))
-    #     print("##### cancel #####")
-    #     return
+        # if b'mit' not in host:
+        #     print(str(host)[2:-1] + ':' + str(port))
+        #     print("##### cancel #####")
+        #     return
 
-    if DEBUG: pretty_print_http(data)
-    if DEBUG: print('forwarding request to', url)
-    if DEBUG: print('client host:', client_address[0])
-    if DEBUG: print('client port:', client_address[1])
-    if DEBUG: print('protocol:   ', protocol)
-    if DEBUG: print('target host:', host)
-    if DEBUG: print('target port:', port)
-    if DEBUG: print('target uri: ', uri)
+        if DEBUG: pretty_print_http(data)
+        if DEBUG: print('forwarding request to', url)
+        if DEBUG: print('client host:', client_address[0])
+        if DEBUG: print('client port:', client_address[1])
+        if DEBUG: print('protocol:   ', protocol)
+        if DEBUG: print('target host:', host)
+        if DEBUG: print('target port:', port)
+        if DEBUG: print('target uri: ', uri)
 
-    server_sock = open_connection(host, port)
-    server_sock.send(data)
-    data2 = receive_from(server_sock)
-    pretty_print_http(data2)
-    print('body:\n', str(get_http_body(data2))[2:-1])
-    client_sock.send(data2)
+        server_sock = open_connection(host, port)
+        server_sock.send(data)
+        data2 = receive_from(server_sock)
+        pretty_print_http(data2)
+        print('body:\n', str(get_http_body(data2))[2:-1])
+        client_sock.send(data2)
 
+    except Exception as e:
+        if DEBUG: print(e)
+        line_no = sys.exc_info()[2].tb_lineno # exc_tb.tb_lineno
+        traceback.print_tb(sys.exc_info()[2])
+        print("a", type(e), "exception occurred on line", line_no, "handling the connection from", client_address)
+
+    finally:
+        if DEBUG: print("closing connections")
+        server_sock.close()
+        client_sock.close()
 
 def get_http_body(http):
     splt = http.split(b'\r\n\r\n')
