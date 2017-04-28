@@ -94,7 +94,6 @@ def handle_connection(client_sock, client_address):
 
     finally:
         if DEBUG: print("closing connections")
-        server_sock.close()
         client_sock.close()
 
 def get_http_body(http):
